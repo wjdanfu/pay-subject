@@ -12,5 +12,8 @@ public class PayControllerTest {
     @Test
     public void 결제(){
 
+
+
+
     }
 }

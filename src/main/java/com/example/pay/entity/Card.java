@@ -25,18 +25,21 @@ public class Card {
     private Long id;
 
     @Column
-    private String unique_id;
+    private String uniqueId;
 
     @Column(nullable = false, length = 450)
     private String cardStringData;
 
     @Builder
-    public Card(String cardStringData){
+    public Card(String cardStringData, String uniqueId){
         this.cardStringData = cardStringData;
+        this.uniqueId = uniqueId;
     }
 
-    public void setUnique_id(String unique_id){
-        this.unique_id = unique_id;
+    public void setUnique_id(String uniqueId){
+        this.uniqueId = uniqueId;
     }
+
+
 
 }

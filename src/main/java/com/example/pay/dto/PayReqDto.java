@@ -9,7 +9,7 @@ import javax.validation.constraints.NotEmpty;
 public class PayReqDto {
 
     @NotEmpty(message = "카드 넘버입력")
-    private int cardNumber;
+    private Long cardNumber;
     private int expireDate;
     private int cvc;
     private int installment;

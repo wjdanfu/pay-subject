@@ -1,26 +1,71 @@
 package com.example.pay.service;
 
 
-import com.example.pay.dto.PayReqDto;
-import com.example.pay.dto.PayResDto;
+import com.example.pay.dto.*;
 import com.example.pay.entity.Card;
 import com.example.pay.entity.CardRepository;
+import com.example.pay.util.AES256;
+import javassist.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-@Service
+
 @RequiredArgsConstructor
+@Service
 public class CardServiceImpl implements CardService {
 
     private final CardRepository cardRepository;
 
     @Override
+    public SearchResDto search(String uniqueId) throws Exception {
+        Card paycard  = cardRepository.findByUniqueId(uniqueId)
+                .orElseThrow(() -> new NotFoundException("없는 결제 입니다."));
+
+        String cardStringData = paycard.getCardStringData();
+
+        SearchResDto searchResDto = new SearchResDto();
+
+        CardInfoDto cardInfoDto = new CardInfoDto();
+
+        AES256 aes256 = new AES256();
+        String cardInfo[] = aes256.decrypt(cardStringData.substring(103,403).trim()).split("/");
+        String cardNumber = cardInfo[0];
+        String expireDate = cardInfo[1];
+        String cvc = cardInfo[2];
+
+        cardNumber = cardNumber.replaceAll("(?<=.{6}).(?>.{3})", "*");
+
+        cardInfoDto.setCardNumber(cardNumber);
+        cardInfoDto.setExpireDate(expireDate);
+        cardInfoDto.setCvc(cvc);
+
+        searchResDto.setCardInfo(cardInfoDto);
+
+        searchResDto.setUniqueId(paycard.getUniqueId());
+
+        if (cardStringData.substring(4, 14).trim().equals("PAYMENT")){
+            searchResDto.setPayOrCancel("결제");
+        }else {
+            searchResDto.setPayOrCancel("취소");
+        }
+
+        PriceInfoDto priceInfoDto = new PriceInfoDto();
+        priceInfoDto.setPrice(Integer.parseInt(cardStringData.substring(63,73).trim()));
+        priceInfoDto.setVat(Integer.parseInt(cardStringData.substring(73,83).trim()));
+
+        searchResDto.setPriceInfoDto(priceInfoDto);
+
+        return searchResDto;
+    }
+
+    @Override
     @Transactional
-    public PayResDto pay(PayReqDto payReqDto) {
+    public PayResDto pay(PayReqDto payReqDto) throws Exception {
 
         LocalDate now = LocalDate.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -28,27 +73,24 @@ public class CardServiceImpl implements CardService {
 
 
         PayResDto payResDto = new PayResDto();
-        String data = dataPart(payReqDto);
-
-
-
-        String header = headerPart(data);
-
-        payResDto.setCardStringData(header+data);
-
-        Card card = new Card(header+data);
+        String data = payDataPart(payReqDto);
 
 
         String id = String.format("%012d", cardRepository.currentSeqID());
 
         String unique_id = formatedNow + id;
 
-        card.setUnique_id(unique_id);
+        String header = headerPart(data, unique_id);
+
+        payResDto.setCardStringData(header+data);
+
+        Card card = new Card(header+data, unique_id);
+
 
 
         Card cardEntity =  cardRepository.save(card);
 
-        payResDto.setManageCardNumber(String.valueOf(cardEntity.getUnique_id()));
+        payResDto.setManageCardNumber(String.valueOf(cardEntity.getUniqueId()));
         payResDto.setCardStringData(cardEntity.getCardStringData());
 
 
@@ -57,15 +99,27 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
-    public String headerPart(String data) {
+    public String headerPart(String data, String unique_id) {
 
 
 
-        return "null";
+        String state = String.format("%-10s", "PAYMENT");
+
+
+        String manageNum = String.format("%-20s", unique_id);
+
+
+        String dataSize = String.format("%4d", data.length()+manageNum.length()+state.length());
+
+
+        String header = dataSize + state + manageNum;
+
+
+        return header;
     }
 
     @Override
-    public String dataPart(PayReqDto payReqDto) {
+    public String payDataPart(PayReqDto payReqDto) throws Exception {
 
         String cardNumber = String.format("%-20d", payReqDto.getCardNumber());
 
@@ -79,11 +133,19 @@ public class CardServiceImpl implements CardService {
 
         String vat = String.format("%010d", payReqDto.getVat());
 
+
         String manageNumber = String.format("%-20s","");
 
-        String encryptedCard = String.format("%-300s","");
+        AES256 aes256 = new AES256();
+
+        String encryptedCard = String.format("%-300s",aes256.encrypt(payReqDto.getCardNumber()
+                +"/"+
+                payReqDto.getExpireDate()
+                +"/"+
+                payReqDto.getCvc()));
 
         String spareField = String.format("%47s","");
+
 
         String cardStringData =
                 cardNumber + installment + expireDate + cvc + payment + vat + manageNumber +encryptedCard+spareField;
@@ -93,5 +155,55 @@ public class CardServiceImpl implements CardService {
 
 
         return cardStringData;
+    }
+
+    @Override
+    public CancelResDto cancel(CancelReqDto cancelReqDto) throws NotFoundException{
+        LocalDate now = LocalDate.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+        String formattedNow = now.format(formatter);
+
+
+        Card paycard  = cardRepository.findByUniqueId(cancelReqDto.getUniqueId())
+                .orElseThrow(() -> new NotFoundException("없는 결제 입니다."));
+
+        String id = String.format("%012d", cardRepository.currentSeqID());
+
+        String unique_id = formattedNow + id;
+
+        CancelResDto cancelResDto = new CancelResDto();
+
+        String data = cancelDataPart(paycard.getCardStringData(), unique_id);
+
+
+
+        Card card = new Card(data,unique_id);
+        Card cardEntity =  cardRepository.save(card);
+
+
+        cancelResDto.setCardStringData(cardEntity.getCardStringData());
+        cancelResDto.setUniqueId(cardEntity.getUniqueId());
+
+        return cancelResDto;
+    }
+
+
+    @Override
+    public String cancelDataPart(String stringData, String unique_id) {
+
+        String payManageNumber = stringData.substring(14,34);
+
+        StringBuffer stringBuffer = new StringBuffer();
+
+        stringBuffer.append(stringData);
+
+        stringBuffer.replace(4,14,"CANCEL    ");
+
+        stringBuffer.replace(14,34,unique_id);
+
+
+        stringBuffer.replace(83,103,payManageNumber);
+
+        return stringBuffer.toString();
     }
 }

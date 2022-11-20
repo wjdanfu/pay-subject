@@ -1,12 +1,13 @@
 package com.example.pay.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-public class CancelResDto {
+public class SearchResDto {
     private String uniqueId;
-    private String cardStringData;
+    private CardInfoDto cardInfo;
+    private String payOrCancel;
+    private PriceInfoDto priceInfoDto;
 }

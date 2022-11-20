@@ -30,6 +30,8 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    implementation 'com.darylteo.gradle:javassist-plugin:0.4.1'
 }
 
 tasks.named('test') {
