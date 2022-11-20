@@ -1,7 +1,9 @@
 package com.example.pay.dto;
 
 
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.validation.constraints.NotEmpty;
 
@@ -15,4 +17,15 @@ public class PayReqDto {
     private int installment;
     private int payment;
     private int vat;
+
+    @Builder
+    public PayReqDto(Long cardNumber,int expireDate, int cvc, int installment, int payment, int vat){
+        this.cardNumber = cardNumber;
+        this.expireDate = expireDate;
+        this.installment= installment;
+        this.payment = payment;
+        this.vat=vat;
+        this.cvc =cvc;
+    }
+
 }
