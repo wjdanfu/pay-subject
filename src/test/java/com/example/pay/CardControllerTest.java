@@ -111,7 +111,7 @@ public class CardControllerTest {
 
 
 
-        mockMvc.perform(get("/card/20221120000000000001"))
+        mockMvc.perform(get("/card/20221120000000000002"))
                 .andExpect(status().isOk())
                 .andDo(print());
     }
