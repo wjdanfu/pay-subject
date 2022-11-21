@@ -11,7 +11,7 @@ public interface CardService {
     String headerPart(String data, String unique_id);
     String payDataPart(PayReqDto payReqDto) throws Exception;
 
-    String cancelDataPart(String stringData, String unique_id);
+    String cancelDataPart(String stringData, String unique_id,String price);
 
     CancelResDto cancel(CancelReqDto cancelReqDto) throws NotFoundException;
 

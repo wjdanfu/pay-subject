@@ -76,8 +76,8 @@ public class CardControllerTest {
 
         CancelReqDto cancelReqDto = CancelReqDto.builder()
 
-                .cancelPrice(1000)
-                .uniqueId("20221120000000000001")
+                .cancelPrice(1001)
+                .uniqueId("20221121000000000001")
                 .vat(10).build();
 
         this.mockMvc.perform(
@@ -111,7 +111,7 @@ public class CardControllerTest {
 
 
 
-        mockMvc.perform(get("/card/20221120000000000002"))
+        mockMvc.perform(get("/card/20221121000000000001"))
                 .andExpect(status().isOk())
                 .andDo(print());
     }

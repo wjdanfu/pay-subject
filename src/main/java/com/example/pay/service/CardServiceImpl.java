@@ -38,7 +38,7 @@ public class CardServiceImpl implements CardService {
         String expireDate = cardInfo[1];
         String cvc = cardInfo[2];
 
-        cardNumber = cardNumber.replaceAll("(?<=.{6}).(?>.{3})", "*");
+        cardNumber = cardNumber.replaceAll("(?<=.{6}).", "*");
 
         cardInfoDto.setCardNumber(cardNumber);
         cardInfoDto.setExpireDate(expireDate);
@@ -158,6 +158,7 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
+    @Transactional
     public CancelResDto cancel(CancelReqDto cancelReqDto) throws NotFoundException{
         LocalDate now = LocalDate.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -167,13 +168,21 @@ public class CardServiceImpl implements CardService {
         Card paycard  = cardRepository.findByUniqueId(cancelReqDto.getUniqueId())
                 .orElseThrow(() -> new NotFoundException("없는 결제 입니다."));
 
+        String cardStringData = paycard.getCardStringData();
+
+        int price = Integer.parseInt(cardStringData.substring(63,73).trim());
+
+        if (price < cancelReqDto.getCancelPrice()){
+            throw new NotFoundException("결제금액보다 작습니다.");
+        }
+
         String id = String.format("%012d", cardRepository.currentSeqID());
 
         String unique_id = formattedNow + id;
 
         CancelResDto cancelResDto = new CancelResDto();
 
-        String data = cancelDataPart(paycard.getCardStringData(), unique_id);
+        String data = cancelDataPart(cardStringData, unique_id, String.format("%10d",price-cancelReqDto.getCancelPrice()));
 
 
 
@@ -189,7 +198,7 @@ public class CardServiceImpl implements CardService {
 
 
     @Override
-    public String cancelDataPart(String stringData, String unique_id) {
+    public String cancelDataPart(String stringData, String unique_id, String price) {
 
         String payManageNumber = stringData.substring(14,34);
 
@@ -200,6 +209,8 @@ public class CardServiceImpl implements CardService {
         stringBuffer.replace(4,14,"CANCEL    ");
 
         stringBuffer.replace(14,34,unique_id);
+
+        stringBuffer.replace(63,73,price);
 
 
         stringBuffer.replace(83,103,payManageNumber);
